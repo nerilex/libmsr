@@ -56,7 +56,7 @@ int msr_serial_read (int fd, void * buf, size_t len)
 	return LIBMSR_ERR_OK;
 }
 
-int msr_serial_write (int fd, void * buf, size_t len)
+int msr_serial_write (int fd, const void * buf, size_t len)
 {
 	return (write (fd, buf, len));
 }
@@ -117,7 +117,7 @@ msr_serial_setup (int fd, speed_t baud)
 	return LIBMSR_ERR_OK;
 }
 
-int msr_serial_open(char *path, int * fd, int blocking, speed_t baud)
+int msr_serial_open(const char *path, int * fd, int blocking, speed_t baud)
 {
 	int	f;
 

@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "libmsr.h"
+#include "msrio.h"
 
 /* Thanks Club Mate and h1kari! Toorcon 10 */
 
@@ -17,13 +18,13 @@ int msr_cmd (int fd, uint8_t c)
 	cmd.msr_esc = MSR_ESC;
 	cmd.msr_cmd = c;
 
-	return (msr_serial_write (fd, &cmd, sizeof(cmd)));
+	return (msr_io_write (fd, &cmd, sizeof(cmd)));
 }
 
 int msr_zeros (int fd, msr_lz_t *lz)
 {
 	msr_cmd (fd, MSR_CMD_CLZ);
-	msr_serial_read (fd, lz, sizeof(msr_lz_t));
+	msr_io_read (fd, lz, sizeof(msr_lz_t));
 
 #ifdef DEBUG
 	printf("zero13: %d zero: %d\n", lz->msr_lz_tk1_3, lz->msr_lz_tk2);
@@ -38,7 +39,7 @@ static int getstart (int fd)
 	int i;
 
 	for (i = 0; i < 3; i++) {
-		msr_serial_readchar(fd, &b);
+		msr_io_readchar(fd, &b);
 		if (b == MSR_RW_START)
 			break;
 	}
@@ -66,7 +67,7 @@ static int getend (int fd)
 {
 	msr_end_t m;
 
-	msr_serial_read (fd, &m, sizeof(m));
+	msr_io_read (fd, &m, sizeof(m));
 
 	if (m.msr_sts != MSR_STS_OK) {
 #ifdef DEBUG
@@ -101,7 +102,7 @@ int msr_commtest (int fd)
 	 */
 
 	while (1) {
-		msr_serial_readchar (fd, &buf[0]);
+		msr_io_readchar (fd, &buf[0]);
 		if (buf[0] == MSR_STS_COMM_OK)
 			break;
 	}
@@ -121,11 +122,11 @@ int msr_fwrev (int fd, uint8_t *buf)
 	if (msr_cmd (fd, MSR_CMD_FWREV) < 0)
             return LIBMSR_ERR_SERIAL;
 
-	msr_serial_readchar (fd, &buf[0]);
+	msr_io_readchar (fd, &buf[0]);
 
 	/* read the result "REV?X.XX" */
 
-	msr_serial_read (fd, buf, 8);
+	msr_io_read (fd, buf, 8);
 	buf[8] = '\0';
 
 #ifdef DEBUG
@@ -143,7 +144,7 @@ int msr_model (int fd, uint8_t *buf)
 
 	/* read the result as the value of X in "MSR206-X" */
 
-	msr_serial_read (fd, &m, sizeof(m));
+	msr_io_read (fd, &m, sizeof(m));
 
 	if (m.msr_s != MSR_STS_MODEL_OK)
 		return LIBMSR_ERR_DEVICE;
@@ -181,20 +182,20 @@ static int gettrack_iso (int fd, int t, uint8_t * buf, uint8_t * len)
 
 	/* Start delimiter should be ESC <track number> */
 
-	msr_serial_readchar (fd, &b);
+	msr_io_readchar (fd, &b);
 	if (b != MSR_ESC) {
 		*len = 0;
 		return LIBMSR_ERR_DEVICE;
 	}
 
-	msr_serial_readchar (fd, &b);
+	msr_io_readchar (fd, &b);
 	if (b != t) {
 		*len = 0;
 		return LIBMSR_ERR_DEVICE;
 	}
 
 	while (1) {
-		msr_serial_readchar (fd, &b);
+		msr_io_readchar (fd, &b);
 		if (b == '%')
 			continue;
 		if (b == ';')
@@ -216,7 +217,7 @@ static int gettrack_iso (int fd, int t, uint8_t * buf, uint8_t * len)
 		return LIBMSR_ERR_OK;
 	} else {
 		*len = 0;
-		msr_serial_readchar (fd, &b);
+		msr_io_readchar (fd, &b);
 	}
 
 	return LIBMSR_ERR_DEVICE;
@@ -230,19 +231,19 @@ static int gettrack_raw (int fd, int t, uint8_t * buf, uint8_t * len)
 
 	/* Start delimiter should be ESC <track number> */
 
-	msr_serial_readchar (fd, &b);
+	msr_io_readchar (fd, &b);
 	if (b != MSR_ESC) {
 		*len = 0;
 		return LIBMSR_ERR_DEVICE;
 	}
 
-	msr_serial_readchar (fd, &b);
+	msr_io_readchar (fd, &b);
 	if (b != t) {
 		*len = 0;
 		return LIBMSR_ERR_DEVICE;
 	}
 
-	msr_serial_readchar (fd, &s);
+	msr_io_readchar (fd, &s);
 
 	if (!s) {
 		*len = 0;
@@ -250,7 +251,7 @@ static int gettrack_raw (int fd, int t, uint8_t * buf, uint8_t * len)
 	}
 
 	for (i = 0; i < s; i++) {
-		msr_serial_readchar (fd, &b);
+		msr_io_readchar (fd, &b);
 		/* Avoid overflowing the buffer */
 		if (i < *len) {
 			l++;
@@ -273,7 +274,7 @@ int msr_sensor_test (int fd)
 	printf("Attempting sensor test -- please slide a card...\n");
 #endif
 
-	msr_serial_read (fd, &b, 2);
+	msr_io_read (fd, &b, 2);
 
 	if (b[0] == MSR_ESC && b[1] == MSR_STS_SENSOR_OK) {
 		return LIBMSR_ERR_OK;
@@ -292,7 +293,7 @@ int msr_ram_test (int fd)
 
 	msr_cmd (fd, MSR_CMD_DIAG_RAM);
 
-	msr_serial_read(fd, b, sizeof(b));
+	msr_io_read(fd, b, sizeof(b));
 
 	if (b[0] == MSR_ESC && b[1] == MSR_STS_RAM_OK) {
  		return LIBMSR_ERR_OK;
@@ -312,7 +313,7 @@ int msr_get_co(int fd)
 
 	msr_cmd(fd, MSR_CMD_GETCO);
 
-	msr_serial_read(fd, &b, 2);
+	msr_io_read(fd, &b, 2);
 
 	if (b[0] == MSR_ESC && (b[1] == MSR_CO_HI || b[1] == MSR_CO_LO)) {
 		return b[1];
@@ -333,7 +334,7 @@ int msr_set_hi_co (int fd)
 	msr_cmd (fd, MSR_CMD_SETCO_HI);
 
 	/* read the result "<esc>0" if OK, unknown or no response if fail */
-	msr_serial_read (fd, &b, 2);
+	msr_io_read (fd, &b, 2);
 
 	if (b[0] == MSR_ESC && b[1] == MSR_STS_OK) {
 #ifdef DEBUG
@@ -357,7 +358,7 @@ int msr_set_lo_co (int fd)
 	msr_cmd (fd, MSR_CMD_SETCO_LO);
 
 	/* read the result "<esc>0" if OK, unknown or no response if fail */
-	msr_serial_read (fd, &b, 2);
+	msr_io_read (fd, &b, 2);
 
 	if (b[0] == MSR_ESC && b[1] == MSR_STS_OK) {
 #ifdef DEBUG
@@ -379,6 +380,7 @@ int msr_reset (int fd)
 	struct timespec pause = { .tv_sec = 0, .tv_nsec = 100000000};
 
 	msr_cmd (fd, MSR_CMD_RESET);
+    msr_io_commit(fd);
 
 	nanosleep(&pause, NULL);
 
@@ -425,9 +427,9 @@ int msr_erase (int fd, uint8_t tracks)
 	uint8_t b[2];
 
 	msr_cmd (fd, MSR_CMD_ERASE);
-	msr_serial_write (fd, &tracks, 1);
+	msr_io_write (fd, &tracks, 1);
 
-	if (msr_serial_read (fd, b, 2) == -1) {
+	if (msr_io_read (fd, b, 2) == -1) {
 #ifdef DEBUG
 		err(1, "read erase response failed");
 #endif
@@ -456,16 +458,16 @@ int msr_iso_write(int fd, msr_tracks_t * tracks)
 	for (i = 0; i < MSR_MAX_TRACKS; i++) {
 		buf[0] = MSR_ESC;
 		buf[1] = i + 1;
-		msr_serial_write (fd, buf, 2);
-		msr_serial_write (fd, tracks->msr_tracks[i].msr_tk_data,
+		msr_io_write (fd, buf, 2);
+		msr_io_write (fd, tracks->msr_tracks[i].msr_tk_data,
 			tracks->msr_tracks[i].msr_tk_len);
 	}
 
 	buf[0] = MSR_RW_END;
 	buf[1] = MSR_FS;
-	msr_serial_write (fd, buf, 2);
+	msr_io_write (fd, buf, 2);
 
-	msr_serial_read(fd, buf, 2);
+	msr_io_read(fd, buf, 2);
 
 	if (buf[1] != MSR_STS_OK) {
 #ifdef DEBUG
@@ -522,16 +524,16 @@ int msr_raw_write(int fd, msr_tracks_t * tracks)
 		buf[0] = MSR_ESC; /* start delimiter */
 		buf[1] = i + 1; /* track number */
 		buf[2] = tracks->msr_tracks[i].msr_tk_len; /* data length */
-		msr_serial_write (fd, buf, 3);
-		msr_serial_write (fd, tracks->msr_tracks[i].msr_tk_data,
+		msr_io_write (fd, buf, 3);
+		msr_io_write (fd, tracks->msr_tracks[i].msr_tk_data,
 			tracks->msr_tracks[i].msr_tk_len);
 	}
 
 	buf[0] = MSR_RW_END;
 	buf[1] = MSR_FS;
-	msr_serial_write (fd, buf, 2);
+	msr_io_write (fd, buf, 2);
 
-	msr_serial_read(fd, buf, 2);
+	msr_io_read(fd, buf, 2);
 
 	if (buf[1] != MSR_STS_OK) {
 #ifdef DEBUG
@@ -561,8 +563,8 @@ int msr_set_bpi (int fd, uint8_t bpi)
 	uint8_t b[2] = {0};
 
 	msr_cmd (fd, MSR_CMD_SETBPI);
-	msr_serial_write (fd, &bpi, 1);
-	msr_serial_read (fd, &b, 2);
+	msr_io_write (fd, &bpi, 1);
+	msr_io_read (fd, &b, 2);
 
 	if (b[0] == MSR_ESC && b[1] == MSR_STS_OK) {
 #ifdef DEBUG
@@ -588,11 +590,11 @@ int msr_set_bpc (int fd, uint8_t bpc1, uint8_t bpc2, uint8_t bpc3)
 	bpc.msr_bpctk3 = bpc3;
 
 	msr_cmd (fd, MSR_CMD_SETBPC);
-	msr_serial_write (fd, &bpc, sizeof(bpc));
+	msr_io_write (fd, &bpc, sizeof(bpc));
 
-	msr_serial_read (fd, &b, 2);
+	msr_io_read (fd, &b, 2);
 	if (b[0] == MSR_ESC && b[1] == MSR_STS_OK) {
-		msr_serial_read (fd, &bpc, sizeof(bpc));
+		msr_io_read (fd, &bpc, sizeof(bpc));
 #ifdef DEBUG
 		printf ("Set bpc... %d %d %d\n", bpc.msr_bpctk1,
 		    bpc.msr_bpctk2, bpc.msr_bpctk3);

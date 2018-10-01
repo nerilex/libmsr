@@ -2,11 +2,11 @@
 
 PREFIX = /usr
 
-CFLAGS = -Wall -g -fPIC -std=c99 -pedantic -D_POSIX_C_SOURCE=200809L
+CFLAGS = -Wall -g -fPIC -std=gnu99 -pedantic -D_POSIX_C_SOURCE=200809L
 LDFLAGS = -L. -lmsr
 
 LIB = libmsr.a
-LIBSRCS = libmsr.c serialio.c msr206.c
+LIBSRCS = libmsr.c msrio.c usbio.c serialio.c msr206.c
 LIBOBJS = $(LIBSRCS:.c=.o)
 
 all: $(LIB)

@@ -5,6 +5,9 @@
 #include <termios.h>
 #include <stdint.h>
 
+extern int msr_io_open (const char *path, int *dev, int blocking, speed_t speed);
+extern int msr_io_close (int dev);
+
 /**
  * Returned on operation success.
  */
@@ -417,56 +420,6 @@ typedef struct msr_track {
 typedef struct msr_tracks {
 	msr_track_t	msr_tracks[MSR_MAX_TRACKS]; /** The array of tracks */
 } msr_tracks_t;
-
-/**
- * @brief Open a serial connection to the MSR device.
- *
- * @param path The path to the serial device.
- * @param fd The int pointer to store the file descriptor in.
- * @param blocking The blocking flag (e.g., ::MSR_BLOCKING)
- * @param baud The baud rate of the serial device (e.g., ::MSR_BAUD)
- * @return ::LIBMSR_ERR_OK on success
- * @return ::LIBMSR_ERR_SERIAL on failure
- */
-extern int msr_serial_open(char *path, int *fd, int blocking, speed_t baud);
-
-/**
- * @brief Close a serial connection to the MSR device.
- *
- * @param fd The file descriptor to close.
- * @return ::LIBMSR_ERR_OK
- */
-extern int msr_serial_close(int fd);
-
-/**
- * @brief Read a single character from the MSR device.
- *
- * @param fd The file descriptor to read from.
- * @param c A pointer to write the character into.
- *
- * @return The character read
- */
-extern int msr_serial_readchar(int fd, uint8_t *c);
-
-/**
- * @brief Write a series of bytes to the MSR device.
- *
- * @param fd The file descriptor to write to.
- * @param buf The buffer to write.
- * @param len The length of the buffer.
- * @return The number of bytes written, or -1 on error.
- */
-extern int msr_serial_write(int fd, void *buf, size_t len);
-
-/**
- * @brief Read a series of bytes from the MSR device.
- *
- * @param fd The file descriptor to read from.
- * @param buf The buffer to read into.
- * @param len The length of the buffer.
- * @return ::LIBMSR_ERR_OK
- */
-extern int msr_serial_read(int fd, void *buf, size_t len);
 
 /**
  * @brief Get the MSR device's current leading-zero setting.
