@@ -19,6 +19,7 @@
 #include "msrio.h"
 #include "serialio.h"
 #include "usbio.h"
+#include "libmsr.h"
 #include <stdio.h>
 
 #define MAX_SUPPORTED_DEVICES 32
@@ -52,7 +53,7 @@ struct device devices[MAX_SUPPORTED_DEVICES];
 
 int msr_io_open(const char *path, int *dev, int blocking, speed_t speed)
 {
-    int r = -1;
+    int r = LIBMSR_ERR_INTERFACE;
     int d;
     int fd;
     size_t i;
@@ -63,14 +64,14 @@ int msr_io_open(const char *path, int *dev, int blocking, speed_t speed)
     if (d >= ARRAY_ELEMENTS(devices)) {
         /* all device slots occupied */
         DBG_PRINTF("DBG: Error: all device slots occupied <%s %s %d>\n", __FILE__, __func__, __LINE__);
-        return -1;
+        return r;
     }
 
-    for (r = -1, i = 0; i < ARRAY_ELEMENTS(drivers) && r < 0; ++i) {
+    for (i = 0; i < ARRAY_ELEMENTS(drivers) && r != LIBMSR_ERR_OK; ++i) {
         r = drivers[i].open(path, &fd, blocking, speed);
     }
 
-    if (r >= 0) {
+    if (r == LIBMSR_ERR_OK) {
         --i;
         devices[d].handle = fd;
         devices[d].func = &drivers[i];
@@ -85,7 +86,7 @@ int msr_io_open(const char *path, int *dev, int blocking, speed_t speed)
 #define STR(a) XSTR(a)
 
 #define DELEGATE_A(name) \
-        int ret = -1;                                                    \
+        int ret = LIBMSR_ERR_INTERFACE;                                                    \
         if (dev >= 0 && dev < MAX_SUPPORTED_DEVICES) {                   \
             if (devices[dev].func != NULL) {                             \
                 ret = 0;                                                 \

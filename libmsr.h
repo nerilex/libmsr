@@ -34,6 +34,11 @@ extern int msr_io_close (int dev);
 #define LIBMSR_ERR_SERIAL 0x4000
 
 /**
+ * Returned on error in driver interface.
+ */
+#define LIBMSR_ERR_INTERFACE 0x8000
+
+/**
  * The maximum length, in bytes, of a track.
  */
 #define MSR_MAX_TRACK_LEN 255

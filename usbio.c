@@ -10,10 +10,13 @@
 #include <string.h>
 
 #include <libusb-1.0/libusb.h>
+#include "libmsr.h"
 #include "usbio.h"
 
 #define MAX_SUPPORTED_DEVICES 32
 #define ARRAY_ELEMENTS(a) (sizeof(a) / sizeof((a)[0]))
+
+#define IF_DEBUG(x)
 
 struct {
     uint16_t vid, pid;
@@ -56,6 +59,7 @@ struct ring_buf {
 #define BUFFER_FILL(rb) (((rb)->tx_index - ((rb)->rx_index + (rb)->size)) % (rb)->size)
 #define BUFFER_CLEAR(rb) do {(rb)->rx_index = (rb)->tx_index = 0; } while(0)
 
+static
 struct usb_if_state {
     struct ring_buf tx;
     struct ring_buf rx;
@@ -63,6 +67,9 @@ struct usb_if_state {
     uint8_t rx_buf_data [USB_MAX_PAYLOAD_SIZE + 1];
 } usb_if_state[MAX_SUPPORTED_DEVICES];
 
+static int active_devices;
+
+static
 size_t ring_buf_append(struct ring_buf *rb, const void *data, size_t len) {
     size_t ret = 0;
     const uint8_t *d = (const uint8_t*)data;
@@ -74,6 +81,7 @@ size_t ring_buf_append(struct ring_buf *rb, const void *data, size_t len) {
     return ret;
 }
 
+static
 size_t ring_buf_fetch(struct ring_buf *rb, void *data, size_t len) {
     size_t ret = 0;
     uint8_t *d = (uint8_t*)data;
@@ -173,7 +181,6 @@ msr_usb_read (int fd, void * buf, size_t len)
 int
 msr_usb_write (int fd, const void * buf, size_t len)
 {
-    (void)fd;
 	return ring_buf_append(&usb_if_state[fd].tx, buf, len);
 }
 
@@ -222,52 +229,35 @@ msr_usb_open(const char *path, int * fd, int blocking, speed_t baud)
     if (r < 0) {
         fprintf(stderr, "usb_claim_interface error %d (%s)\n", r, libusb_error_name(r));
     }
-    printf("claimed interface\n");
+    IF_DEBUG(printf("claimed interface\n");)
+    active_devices += 1;
     *fd = idx;
-	return (0);
+	return LIBMSR_ERR_OK;
 error:
     if (devh[idx] != NULL) {
         libusb_reset_device(devh[idx]);
     }
     libusb_close(devh[idx]);
-    libusb_exit(NULL);
-    return (-1);
+    if (active_devices == 0) {
+        libusb_exit(NULL);
+    }
+    return LIBMSR_ERR_INTERFACE;
 }
 
 int
 msr_usb_close(int fd)
 {
-    libusb_release_interface(devh[fd], 0);
-    libusb_close(devh[fd]);
-    libusb_exit(NULL);
+    libusb_device_handle *h;
+    if (active_devices > 0) {
+        active_devices -= 1;
+    }
+    h = devh[fd];
     devh[fd] = NULL;
-    return 0;
+    libusb_release_interface(h, 0);
+    libusb_close(h);
+    if (active_devices == 0) {
+        libusb_exit(NULL);
+    }
+    return LIBMSR_ERR_OK;
 }
 
-#if 0
-int msr_serial_open (const char *path, int *fd, int blocking, speed_t baud)
-{
-    return msr_usb_open(path, fd, blocking, baud);
-}
-
-int msr_serial_close (int fd)
-{
-    return msr_usb_close(fd);
-}
-
-int msr_serial_readchar (int fd, uint8_t *c)
-{
-    return msr_usb_readchar(fd, c);
-}
-
-int msr_serial_write (int fd, void *data, size_t len)
-{
-    return msr_usb_write(fd, data, len);
-}
-
-int msr_serial_read (int fd, void *data, size_t len)
-{
-    return msr_usb_read(fd, data, len);
-}
-
-#endif
