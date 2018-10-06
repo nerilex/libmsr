@@ -117,15 +117,11 @@ msr_usb_commit (int fd)
         } while (!BUFFER_EMPTY(&usb_if_state[fd].tx));
         BUFFER_CLEAR(&usb_if_state[fd].rx);
     }
-    return 0;
+    return LIBMSR_ERR_OK;
 }
-/*
- * Read a character from the serial port. Note that this
- * routine will block until a valid character is read.
- */
 
 int
-msr_usb_readchar (int fd, uint8_t * c)
+msr_usb_readchar (int fd, uint8_t *c)
 {
 	uint8_t		b;
     uint8_t tmp[USB_MAX_PACKET_SIZE];
@@ -175,7 +171,7 @@ msr_usb_read (int fd, void * buf, size_t len)
 	printf("\n");
 #endif
 
-	return (0);
+	return LIBMSR_ERR_OK;
 }
 
 int
@@ -197,7 +193,7 @@ msr_usb_open(const char *path, int * fd, int blocking, speed_t baud)
     for (idx = 0; idx < ARRAY_ELEMENTS(devh) && devh[idx] != NULL; ++idx)
         ;
     if (idx >= ARRAY_ELEMENTS(devh)) {
-        return -1;
+        return LIBMSR_ERR_INTERFACE;
     }
 
     memset(&usb_if_state, 0, sizeof(usb_if_state));
@@ -210,7 +206,7 @@ msr_usb_open(const char *path, int * fd, int blocking, speed_t baud)
 /*        libusb_set_debug(NULL, LIBUSB_LOG_LEVEL_DEBUG); */
     if (r < 0) {
         fprintf(stderr, "failed to initialise libusb\n");
-        exit(1);
+        goto error;
     }
 
     devh[idx] = open_device();
